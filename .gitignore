@@ -1,0 +1,39 @@
+# --- CLion / JetBrains ---
+.idea/
+cmake-build-*/
+*.iml
+
+# --- macOS System Files ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Compilation Artifacts (Standard) ---
+*.o
+*.d
+*.obj
+
+# --- Project Specific Artifacts (Binaries) ---
+# The subject requires you to compile these, but strictly forbids COMMITTING them.
+# You must submit code that COMPILES into these files.
+*.so
+*.dylib
+libft_malloc_*.so
+libft_malloc.so
+
+# --- Executables ---
+a.out
+test_runner
+# Add any specific names of test executables you create here
+
+# --- Editors / Tools ---
+.vscode/
+*.swp
+*~
+
+# --- Libft ---
+# If libft is a submodule, Git handles it automatically.
+# If it's a regular folder, we want to commit it, so we DO NOT ignore it here.
+# However, we want to ignore compiled files INSIDE libft:
+libft/*.o
+libft/*.a
