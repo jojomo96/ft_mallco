@@ -40,10 +40,10 @@ typedef enum e_zone_type {
 } t_zone_type;
 
 typedef struct s_zone {
-    struct s_zone *next;       // Pointer to the next zone in the global list
-    t_block *      blocks;     // Pointer to the first block in this zone
-    size_t         size; // Total size of this zone (including metadata)
-    t_zone_type    type;       // Type of this zone (TINY, SMALL, LARGE)
+    struct s_zone *next;   // Pointer to the next zone in the global list
+    t_block *      blocks; // Pointer to the first block in this zone
+    size_t         size;   // Total size of this zone (including metadata)
+    t_zone_type    type;   // Type of this zone (TINY, SMALL, LARGE)
 } t_zone;
 
 
@@ -62,19 +62,20 @@ void *malloc(size_t size);
 void  free(void *ptr);
 void *realloc(void *ptr, size_t size);
 void  show_alloc_mem(void);
+void  show_alloc_mem_ex(void);
 
 /* -------------------------------------------------------------------------- */
 /* INTERNAL SHARED HELPERS (Do not call these from outside)                   */
 /* -------------------------------------------------------------------------- */
 
 /* Core logic without locks (used by realloc to avoid deadlocks) */
-void    *malloc_nolock(size_t size);
-void    free_nolock(void *ptr);
+void *malloc_nolock(size_t size);
+void  free_nolock(void *ptr);
 
 /* Utility functions shared across files */
 size_t  align_size(size_t size);
 void    split_block(t_block *block, size_t size);
 void    coalesce_right(t_block *current);
-t_zone  *request_new_zone(t_zone_type type, size_t request_size);
+t_zone *request_new_zone(t_zone_type type, size_t request_size);
 
 #endif // FT_MALLOC_LIBRARY_H
