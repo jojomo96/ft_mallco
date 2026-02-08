@@ -7,8 +7,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # -fPIC is required for Shared Libraries
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -fPIC -D_REENTRANT")
 
-# 2. Handle HOSTTYPE (Environment Variable Logic) [cite: 27, 28, 29]
-# If $HOSTTYPE env var is empty, we must calculate it using uname.
+# 2. Handle HOSTTYPE (Environment Variable Logic)
 set(HOSTTYPE $ENV{HOSTTYPE})
 
 if(NOT HOSTTYPE)
@@ -19,6 +18,10 @@ if(NOT HOSTTYPE)
 endif()
 
 message(STATUS "Compiling for HOSTTYPE: ${HOSTTYPE}")
+
+# 2.b Bring in libft (matches top-level Makefile behavior)
+# This defines a target called `libft`.
+add_subdirectory(libft)
 
 # 3. Source Files
 file(GLOB_RECURSE SRC_FILES "src/*.c")
@@ -31,14 +34,21 @@ add_library(ft_malloc SHARED ${SRC_FILES})
 set_target_properties(ft_malloc PROPERTIES
         PREFIX ""                                # Disable auto "lib" prefix
         OUTPUT_NAME "libft_malloc_${HOSTTYPE}"   # Explicit full name
-        SUFFIX ".so"                             # Force .so extension (even on Mac)
 )
 
-# 6. Include Directories
-target_include_directories(ft_malloc PUBLIC include)
+# Force ".so" like the subject/Makefile, even on macOS.
+set_target_properties(ft_malloc PROPERTIES SUFFIX ".so")
 
-# 7. Link Pthread (Bonus/Thread Safety) [cite: 47, 103]
-target_link_libraries(ft_malloc pthread)
+# 6. Include Directories
+target_include_directories(ft_malloc PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/libft/include
+)
+
+# 7. Link dependencies
+# - libft: required for show_alloc_mem helpers
+# - pthread: for mutex/thread-safety
+target_link_libraries(ft_malloc PRIVATE libft pthread)
 
 # 8. Create Symbolic Link
 # Creates libft_malloc.so -> libft_malloc_$HOSTTYPE.so

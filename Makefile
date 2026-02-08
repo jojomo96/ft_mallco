@@ -35,8 +35,7 @@ LIBFT_DIR	= libft
 # Library paths
 LIBFT		= $(LIBFT_DIR)/libft.a
 
-SRC_FILES	= malloc.c free.c realloc.c show_alloc_mem.c
-SRCS		= $(addprefix $(SRC_DIR)/, $(SRC_FILES))
+SRCS        := $(wildcard $(SRC_DIR)/*.c)
 
 # Object files
 OBJS		= $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
