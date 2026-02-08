@@ -3,15 +3,13 @@
 t_zone *        g_zones = NULL;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-t_zone *request_new_zone(t_zone_type type, size_t request_size);
-
 /*
  * HELPER
  * We align to 16 bytes (128 bits) to accommodate strict alignment requirements
  * on modern CPUs (like vectors/SSE) and to ensure our headers are safe.
  */
-static size_t align_size(const size_t size) {
-    return (size + 15) & ~15; // Align to 16 bytes
+size_t align_size(const size_t size) {
+    return size + 15 & ~15; // Align to 16 bytes
 }
 
 /*
@@ -30,7 +28,7 @@ static t_zone_type get_zone_type(const size_t size) {
  * HELPER: Split a block into two
  * We only split if there is enough space for a new header + minimal alignment.
  */
-static void split_block(t_block *block, const size_t size) {
+void split_block(t_block *block, const size_t size) {
     // Calculate the remaining space
     // minimal size for a split = size requested + size of a new header + alignment padding
     if (block->size >= size + sizeof(t_block) + 16) {
@@ -76,15 +74,13 @@ static t_block *find_free_block(const t_zone_type type, const size_t size) {
     return NULL;
 }
 
-void *malloc(size_t size) {
+void *malloc_nolock(size_t size) {
     if (size == 0)
-        return (NULL);
+        return NULL;
 
     // 1. Align size to 16 bytes
     const size_t      aligned_size = align_size(size);
     const t_zone_type type         = get_zone_type(aligned_size);
-
-    pthread_mutex_lock(&g_mutex);
 
     // 2. Try to find an existing free block
     t_block *block = find_free_block(type, aligned_size);
@@ -94,7 +90,6 @@ void *malloc(size_t size) {
         t_zone *zone = request_new_zone(type, aligned_size);
         if (!zone) {
             // Failed to mmap (OOM)
-            pthread_mutex_unlock(&g_mutex);
             return NULL;
         }
 
@@ -111,9 +106,16 @@ void *malloc(size_t size) {
         block->free = 0;
     }
 
-    pthread_mutex_unlock(&g_mutex);
-
     // 5. Return the pointer to the USER data (skip the header!)
     //    (void*)block + sizeof(t_block)
     return (void *) block + sizeof(t_block);
+}
+
+
+void *malloc(size_t size) {
+    pthread_mutex_lock(&g_mutex);
+    void *ptr = malloc_nolock(size);
+    pthread_mutex_unlock(&g_mutex);
+
+    return ptr;
 }

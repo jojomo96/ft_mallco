@@ -4,7 +4,7 @@
  * HELPER: Merge 'current' block with 'next' block
  * This absorbs the 'next' block into 'current'.
  */
-static void coalesce_right(t_block *current) {
+void coalesce_right(t_block *current) {
     const t_block *next_block = current->next;
 
     if (next_block && next_block->free) {
@@ -36,45 +36,40 @@ static void free_large_zone(t_zone *zone, t_zone *prev_zone) {
     munmap(zone, zone->size);
 }
 
-void free(void *ptr) {
+void free_nolock(void *ptr) {
     if (!ptr)
         return;
 
-    pthread_mutex_lock(&g_mutex);
-
-    t_zone  *zone = g_zones;
-    t_zone  *prev_zone = NULL;
+    t_zone *zone      = g_zones;
+    t_zone *prev_zone = NULL;
 
     // 1. Walk through all zones to find where this pointer belongs
     while (zone) {
-        char *zone_start = (char *)zone;
+        char *zone_start = (char *) zone;
         char *zone_end   = zone_start + zone->size;
 
         // Optimization: Check if ptr is within the address range of this zone
         // (void*)zone is start, (void*)zone + zone->size is end
-        if ((char *)ptr >= zone_start && (char *)ptr < zone_end) {
-
+        if ((char *) ptr >= zone_start && (char *) ptr < zone_end) {
             // Found the zone! Now let's find the specific block.
-            t_block *block = zone->blocks;
+            t_block *block      = zone->blocks;
             t_block *prev_block = NULL;
 
             while (block) {
                 // Calculate the data pointer for this block header
-                const void *data_ptr = (char *)block + sizeof(t_block);
+                const void *data_ptr = (char *) block + sizeof(t_block);
 
                 if (data_ptr == ptr) {
                     // --- FOUND THE BLOCK ---
 
                     // Double-Free Protection
                     if (block->free) {
-                        pthread_mutex_unlock(&g_mutex);
                         return;
                     }
 
                     // LARGE Zone
                     if (zone->type == LARGE) {
                         free_large_zone(zone, prev_zone);
-                        pthread_mutex_unlock(&g_mutex);
                         return;
                     }
 
@@ -90,14 +85,12 @@ void free(void *ptr) {
                         // After merging left, 'prev_block' is the master.
                         // We don't need to do anything else.
                     }
-
-                    pthread_mutex_unlock(&g_mutex);
                     return;
                 }
 
                 // Advance block pointers
                 prev_block = block;
-                block = block->next;
+                block      = block->next;
             }
             // If we are here, ptr is inside this zone's range but NOT a valid block start.
             // It's an invalid pointer (e.g., pointer to middle of a string).
@@ -106,9 +99,12 @@ void free(void *ptr) {
         }
         // Advance zone pointers
         prev_zone = zone;
-        zone = zone->next;
+        zone      = zone->next;
     }
+}
 
-    // If we get here, the pointer was invalid (not found in any zone).
+void free(void *ptr) {
+    pthread_mutex_lock(&g_mutex);
+    free_nolock(ptr);
     pthread_mutex_unlock(&g_mutex);
 }

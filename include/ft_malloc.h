@@ -63,4 +63,18 @@ void  free(void *ptr);
 void *realloc(void *ptr, size_t size);
 void  show_alloc_mem(void);
 
+/* -------------------------------------------------------------------------- */
+/* INTERNAL SHARED HELPERS (Do not call these from outside)                   */
+/* -------------------------------------------------------------------------- */
+
+/* Core logic without locks (used by realloc to avoid deadlocks) */
+void    *malloc_nolock(size_t size);
+void    free_nolock(void *ptr);
+
+/* Utility functions shared across files */
+size_t  align_size(size_t size);
+void    split_block(t_block *block, size_t size);
+void    coalesce_right(t_block *current);
+t_zone  *request_new_zone(t_zone_type type, size_t request_size);
+
 #endif // FT_MALLOC_LIBRARY_H
