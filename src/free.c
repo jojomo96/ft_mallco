@@ -63,8 +63,12 @@ void free_nolock(void *ptr) {
                     // --- FOUND THE BLOCK ---
 
                     // Double-Free Protection
-                    if (block->free) {
-                        return;
+                    if (block->free) return;
+
+                    // --- BONUS: SCRIBBLE ON FREE ---
+                    // Fill with 0x55 (01010101) to expose Use-After-Free
+                    if (g_malloc_scribble) {
+                        ft_memset(ptr, 0x55, block->size);
                     }
 
                     // LARGE Zone

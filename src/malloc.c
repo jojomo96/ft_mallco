@@ -1,7 +1,17 @@
+#include <stdlib.h>
+
 #include "ft_malloc.h"
 
-t_zone *        g_zones = NULL;
-pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
+t_zone *        g_zones           = NULL;
+pthread_mutex_t g_mutex           = PTHREAD_MUTEX_INITIALIZER;
+int             g_malloc_scribble = 0; // Set to 1 to enable scribbling (0xAA for allocated, 0x55 for freed)
+
+void __attribute__((constructor)) init_malloc_debug(void) {
+    if (getenv("MallocScribble")) {
+        g_malloc_scribble = 1;
+        // ft_putstr_fd("MallocScribble enabled\n", 2); // Optional: Debug print
+    }
+}
 
 /*
  * HELPER
@@ -9,7 +19,7 @@ pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
  * on modern CPUs (like vectors/SSE) and to ensure our headers are safe.
  */
 size_t align_size(const size_t size) {
-    return size + 15 & ~15; // Align to 16 bytes
+    return (size + 15) & ~15; // Align to 16 bytes
 }
 
 /*
@@ -106,9 +116,17 @@ void *malloc_nolock(size_t size) {
         block->free = 0;
     }
 
+    void *ptr = (void *) block + sizeof(t_block);
+
+    // --- BONUS: SCRIBBLE ON ALLOC ---
+    // Fill with 0xAA (10101010) to expose uninitialized reads
+    if (g_malloc_scribble) {
+        ft_memset(ptr, 0xAA, size); // Only scribble requested size, not full block
+    }
+
     // 5. Return the pointer to the USER data (skip the header!)
     //    (void*)block + sizeof(t_block)
-    return (void *) block + sizeof(t_block);
+    return ptr;
 }
 
 

@@ -51,8 +51,9 @@ typedef struct s_zone {
 /* GLOBALS                                   */
 /* -------------------------------------------------------------------------- */
 
-extern t_zone *        g_zones; // Global linked list of all zones
+extern t_zone *g_zones; // Global linked list of all zones
 extern pthread_mutex_t g_mutex; // Mutex for thread safety
+extern int g_malloc_scribble; // If set, fill allocated memory with 0xAA and freed memory with 0x55 for debugging
 
 /* -------------------------------------------------------------------------- */
 /* PROTOTYPES                                  */

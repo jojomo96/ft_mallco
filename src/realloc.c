@@ -1,6 +1,12 @@
 #include <stdint.h>
 #include "ft_malloc.h"
 
+static void scribble_new_bytes(void *ptr, size_t old_size, size_t new_size) {
+    if (g_malloc_scribble && new_size > old_size) {
+        ft_memset((char *) ptr + old_size, 0xAA, new_size - old_size);
+    }
+}
+
 /*
  * HELPER: Find the block metadata for a given user pointer.
  * Assumes g_mutex is locked.
@@ -88,6 +94,7 @@ void *realloc(void *ptr, size_t size) {
     // 4. Optimization: In-Place Growth (Merge with next) - Only for TINY/SMALL
     if (zone->type != LARGE) {
         if (try_merge_next(block, aligned_size)) {
+            scribble_new_bytes(ptr, old_size, block->size);
             pthread_mutex_unlock(&g_mutex);
             return ptr;
         }
@@ -102,8 +109,9 @@ void *realloc(void *ptr, size_t size) {
     }
 
     // 6. Copy the old data
-    size_t copy_size = old_size < aligned_size ? old_size : aligned_size;
+    size_t copy_size = old_size; // here aligned_size > old_size, so copy old_size
     ft_memcpy(new_ptr, ptr, copy_size);
+    scribble_new_bytes(new_ptr, old_size, aligned_size);
     free_nolock(ptr);
 
     pthread_mutex_unlock(&g_mutex);
