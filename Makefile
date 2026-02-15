@@ -45,7 +45,13 @@ OBJS		= $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 # ==============================================================================
 
 # Default rule
-all: $(NAME)
+all: $(LIBFT_DIR)/.git $(NAME)
+
+# Initialize and update submodules if libft is not present
+$(LIBFT_DIR)/.git:
+	@echo "Initializing git submodules..."
+	git submodule update --init --recursive
+
 
 # Link the library and create the symlink
 $(NAME): $(LIBFT) $(OBJS)
@@ -54,7 +60,7 @@ $(NAME): $(LIBFT) $(OBJS)
 	@echo "Created $(NAME) and symlink $(SYMLINK)"
 
 # Compile Libft
-$(LIBFT):
+$(LIBFT): $(LIBFT_DIR)/.git
 	@echo "Compiling libft..."
 	@$(MAKE) -C $(LIBFT_DIR)
 
