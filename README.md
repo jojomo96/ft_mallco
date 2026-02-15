@@ -9,21 +9,21 @@ This project re-implements dynamic memory allocation without relying on the syst
 ## Features
 
 - Custom implementation of:
-    - `malloc`
-    - `free`
-    - `realloc`
-    - `calloc`
+  - `malloc`
+  - `free`
+  - `realloc`
+  - `calloc`
 - Memory allocation based on `mmap()` (no use of libc malloc)
 - Allocation split into three categories:
-    - **TINY**
-    - **SMALL**
-    - **LARGE**
+  - **TINY**
+  - **SMALL**
+  - **LARGE**
 - Block splitting to reduce wasted memory
 - Block coalescing to reduce fragmentation
 - Thread-safe implementation using a global mutex
 - Debug memory visualization:
-    - `show_alloc_mem()`
-    - `show_alloc_mem_ex()` (bonus)
+  - `show_alloc_mem()`
+  - `show_alloc_mem_ex()` (bonus)
 
 ---
 
@@ -80,3 +80,80 @@ Build the shared library:
 
 ```sh
 make
+```
+
+This produces:
+
+- `libft_malloc_$(HOSTTYPE).so`
+- `libft_malloc.so` (symlink)
+
+---
+
+## Usage
+
+### Using LD_PRELOAD (recommended)
+
+You can preload the allocator into any executable:
+
+```sh
+export MY_MALLOC=./libft_malloc.so
+LD_PRELOAD=$MY_MALLOC ls
+```
+
+Example:
+
+```sh
+LD_PRELOAD=$MY_MALLOC grep "malloc" Makefile
+```
+
+---
+
+## Debug Options
+
+### Scribble Mode (bonus)
+
+If enabled, memory is filled with recognizable patterns:
+
+- `0xAA` on allocation
+- `0x55` on free
+
+Enable with:
+
+```sh
+export MallocScribble=1
+```
+
+---
+
+## Project Structure
+
+```
+.
+├── include/
+│   └── ft_malloc.h
+├── src/
+│   ├── malloc.c
+│   ├── free.c
+│   ├── realloc.c
+│   ├── calloc.c
+│   ├── zone_utils.c
+│   ├── show_alloc_mem.c
+│   └── show_alloc_mem_ex.c
+├── Makefile
+└── README.md
+```
+
+---
+
+## Notes
+
+- This allocator is designed to be compatible with real-world binaries when used through `LD_PRELOAD`.
+- Behavior for edge cases such as `malloc(0)` follows common libc-compatible allocator behavior.
+- Thread safety is ensured through a global mutex.
+
+---
+
+## Author
+
+**jmoritz**  
+42 School project — custom memory allocator implementation.
