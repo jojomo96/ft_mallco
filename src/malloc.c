@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "ft_malloc.h"
@@ -85,11 +86,16 @@ static t_block *find_free_block(const t_zone_type type, const size_t size) {
 }
 
 void *malloc_nolock(size_t size) {
-    if (size == 0)
+    // POSIX/C allow malloc(0) to either return NULL or a unique free-able pointer.
+    // We choose to return a valid minimal allocation for better compatibility.
+    const size_t requested_size = size == 0 ? (size_t) 1u : size;
+
+    // overflow guard for align_size(size) == (size + 15) & ~15
+    if (requested_size > SIZE_MAX - (size_t) 15u)
         return NULL;
 
     // 1. Align size to 16 bytes
-    const size_t      aligned_size = align_size(size);
+    const size_t      aligned_size = align_size(requested_size);
     const t_zone_type type         = get_zone_type(aligned_size);
 
     // 2. Try to find an existing free block
@@ -121,7 +127,7 @@ void *malloc_nolock(size_t size) {
     // --- BONUS: SCRIBBLE ON ALLOC ---
     // Fill with 0xAA (10101010) to expose uninitialized reads
     if (g_malloc_scribble) {
-        ft_memset(ptr, 0xAA, size); // Only scribble requested size, not full block
+        ft_memset(ptr, 0xAA, requested_size); // Only scribble requested size, not full block
     }
 
     // 5. Return the pointer to the USER data (skip the header!)

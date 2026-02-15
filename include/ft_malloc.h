@@ -13,7 +13,7 @@
 # define TINY_MALLOC_LIMIT 128
 # define SMALL_MALLOC_LIMIT 1024
 
-#define MIN_ALLOCS 100
+#define MIN_ALLOCS 100 //512
 
 /* -------------------------------------------------------------------------- */
 /* STRUCTURES                                  */
@@ -62,6 +62,7 @@ extern int g_malloc_scribble; // If set, fill allocated memory with 0xAA and fre
 void *malloc(size_t size);
 void  free(void *ptr);
 void *realloc(void *ptr, size_t size);
+void *calloc(size_t nmemb, size_t size);
 void  show_alloc_mem(void);
 void  show_alloc_mem_ex(void);
 
