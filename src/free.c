@@ -9,7 +9,7 @@ void coalesce_right(t_block *current) {
 
     if (next_block && next_block->free) {
         // Add the size of the next block + its header to current
-        current->size += sizeof(t_block) + next_block->size;
+        current->size += BLOCK_HDR_SIZE + next_block->size;
 
         // Update the pointer to skip the absorbed block
         current->next = next_block->next;
@@ -57,7 +57,7 @@ void free_nolock(void *ptr) {
 
             while (block) {
                 // Calculate the data pointer for this block header
-                const void *data_ptr = (char *) block + sizeof(t_block);
+                const void *data_ptr = (char *)block + BLOCK_HDR_SIZE;
 
                 if (data_ptr == ptr) {
                     // --- FOUND THE BLOCK ---

@@ -4,7 +4,7 @@
 /* VISUALIZER LOGIC                                                           */
 /* -------------------------------------------------------------------------- */
 
-void show_alloc_mem(void) {
+void show_alloc_mem(void){
     size_t total_bytes = 0;
 
     pthread_mutex_lock(&g_mutex);
@@ -27,10 +27,12 @@ void show_alloc_mem(void) {
         while (block) {
             // We only print ALLOCATED blocks (not free ones)
             if (!block->free) {
-                // Format: 0xA0020 - 0xA004A : 42 bytes
-                ft_putptr_fd((void *) block + sizeof(t_block), 1);
+                void *start = (void *)((char *)block + BLOCK_HDR_SIZE);
+                void *end   = (void *)((char *)block + BLOCK_HDR_SIZE + block->size);
+
+                ft_putptr_fd(start, 1);
                 ft_putstr_fd(" - ", 1);
-                ft_putptr_fd((void *) block + sizeof(t_block) + block->size, 1);
+                ft_putptr_fd(end, 1);
                 ft_putstr_fd(" : ", 1);
                 ft_putsize_fd(block->size, 1);
                 ft_putstr_fd(" bytes\n", 1);
@@ -39,6 +41,7 @@ void show_alloc_mem(void) {
             }
             block = block->next;
         }
+
         zone = zone->next;
     }
 

@@ -15,6 +15,13 @@
 
 #define MIN_ALLOCS 100 //512
 
+#define MALLOC_ALIGN 16UL
+#define ALIGN_UP(x) (((x) + (MALLOC_ALIGN - 1)) & ~(MALLOC_ALIGN - 1))
+
+#define ZONE_HDR_SIZE  ALIGN_UP(sizeof(t_zone))
+#define BLOCK_HDR_SIZE ALIGN_UP(sizeof(t_block))
+
+
 /* -------------------------------------------------------------------------- */
 /* STRUCTURES                                  */
 /* -------------------------------------------------------------------------- */

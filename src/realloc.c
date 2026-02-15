@@ -21,7 +21,7 @@ static t_block *find_block_by_ptr(void *ptr, t_zone **out_zone) {
         if ((char *) ptr >= start && (char *) ptr < end) {
             t_block *block = zone->blocks;
             while (block) {
-                if ((void *) ((char *) block + sizeof(t_block)) == ptr) {
+                if ((void *) ((char *) block + BLOCK_HDR_SIZE) == ptr) {
                     *out_zone = zone;
                     return block;
                 }
@@ -45,7 +45,7 @@ static int try_merge_next(t_block *block, size_t need) {
     if (!next || !next->free)
         return 0;
 
-    size_t merged = block->size + sizeof(t_block) + next->size;
+    size_t merged = block->size + BLOCK_HDR_SIZE + next->size;
     if (merged < need)
         return 0;
 

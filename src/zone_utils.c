@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "ft_malloc.h"
 
 /*
@@ -6,17 +8,17 @@
  */
 static size_t calculate_zone_size(const t_zone_type type, const size_t request_size) {
     const size_t page_size = getpagesize();
-
     size_t size_needed;
+
     if (type == TINY)
         // 100 blocks of (MAX_TINY + Header)
-        size_needed = sizeof(t_zone) + MIN_ALLOCS * (TINY_MALLOC_LIMIT + sizeof(t_block));
+        size_needed = ZONE_HDR_SIZE + MIN_ALLOCS * (TINY_MALLOC_LIMIT + BLOCK_HDR_SIZE);
     else if (type == SMALL)
         // 100 blocks of (MAX_SMALL + Header)
-        size_needed = sizeof(t_zone) + MIN_ALLOCS * (SMALL_MALLOC_LIMIT + sizeof(t_block));
+        size_needed = ZONE_HDR_SIZE + MIN_ALLOCS * (SMALL_MALLOC_LIMIT + BLOCK_HDR_SIZE);
     else
         // LARGE: Just the request + headers
-        size_needed = sizeof(t_zone) + request_size + sizeof(t_block);
+        size_needed = ZONE_HDR_SIZE + request_size + BLOCK_HDR_SIZE; // request size is already aligned
 
     // Round up to the nearest multiple of page size
     return (size_needed + page_size - 1) / page_size * page_size;
@@ -29,17 +31,18 @@ static size_t calculate_zone_size(const t_zone_type type, const size_t request_s
  */
 static t_zone *init_zone(void *ptr, const t_zone_type type, const size_t zone_size) {
     // 1. Place the Zone Header at the start of the new memory
-    t_zone *zone = ptr;
+    t_zone *zone = (t_zone *)ptr;
     zone->type   = type;
     zone->size   = zone_size;
     zone->next   = NULL;
 
     // 2. Place the first Block Header immediately after the Zone Header
-    t_block *first_block = (void *) zone + sizeof(t_zone);
-    zone->blocks         = first_block;
-    first_block->next    = NULL;
-    first_block->size    = zone_size - sizeof(t_zone) - sizeof(t_block);
-    first_block->free    = type != LARGE ? 1 : 0; // LARGE zones effectively have one block that is already "used"
+    t_block *first_block = (t_block *)((char *)zone + ZONE_HDR_SIZE);
+    zone->blocks = first_block;
+
+    first_block->next = NULL;
+    first_block->size = zone_size - ZONE_HDR_SIZE - BLOCK_HDR_SIZE;
+    first_block->free = (type != LARGE); // LARGE zones effectively have one block that is already "used"
 
     return zone;
 }
@@ -67,9 +70,11 @@ t_zone *request_new_zone(const t_zone_type type, const size_t request_size) {
 
     // 5. Add this new zone to the global list
     t_zone **pp = &g_zones;
-    while (*pp)
+    while (*pp && (uintptr_t)(*pp) < (uintptr_t)zone)
         pp = &(*pp)->next;
+    zone->next = *pp;
     *pp = zone;
+
 
     return zone;
 }

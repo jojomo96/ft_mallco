@@ -8,7 +8,7 @@
  * When 1: Skips illegal operations (Double Free, Stack Free, Use-After-Free)
  * When 0: Runs full robustness tests (Good for defense, bad for Valgrind)
  */
-#define VALGRIND_MODE 1
+#define VALGRIND_MODE 0
 
 /* Colors */
 #define RESET   "\033[0m"
@@ -89,6 +89,30 @@ void test_realloc(void) {
 #endif
 
     free(shrunk_ptr);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TEST 2b: Calloc Logic                                                      */
+/* -------------------------------------------------------------------------- */
+void test_calloc(void) {
+    print_header("TEST 2b: Calloc Verification");
+
+    size_t count = 10;
+    size_t size = sizeof(int);
+    int *arr = calloc(count, size);
+
+    print_result("Calloc returns pointer", arr != NULL);
+
+    int is_zero = 1;
+    for (size_t i = 0; i < count; i++) {
+        if (arr[i] != 0) {
+            is_zero = 0;
+            break;
+        }
+    }
+    print_result("Calloc zeroes memory", is_zero);
+
+    free(arr);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -175,7 +199,7 @@ void test_bonus(void) {
     strcpy(s, "Check HexDump for 0xAA...");
 
     // Only show visualizer if not in automated Valgrind (too much output)
-    // show_alloc_mem_ex();
+    show_alloc_mem_ex();
 
     free(s);
 
@@ -198,6 +222,7 @@ void test_bonus(void) {
 int main(void) {
     test_mandatory();
     test_realloc();
+    test_calloc();
     test_edge_cases();
     test_bonus();
     test_threads();

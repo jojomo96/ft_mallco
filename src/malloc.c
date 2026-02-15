@@ -42,13 +42,13 @@ static t_zone_type get_zone_type(const size_t size) {
 void split_block(t_block *block, const size_t size) {
     // Calculate the remaining space
     // minimal size for a split = size requested + size of a new header + alignment padding
-    if (block->size >= size + sizeof(t_block) + 16) {
+    if (block->size >= size + BLOCK_HDR_SIZE + MALLOC_ALIGN) {
         // 1. Create the pointer for the new block
         // We start at: (current address) + (current header size) + (requested user size)
-        t_block *new_block = (void *) block + sizeof(t_block) + size;
+        t_block *new_block = (t_block *)((char *)block + BLOCK_HDR_SIZE + size);
 
         // 2. Set up the new block's metadata
-        new_block->size = block->size - size - sizeof(t_block);
+        new_block->size = block->size - size - BLOCK_HDR_SIZE;
         new_block->next = block->next;
         new_block->free = 1; // The new block is free
 
@@ -122,7 +122,7 @@ void *malloc_nolock(size_t size) {
         block->free = 0;
     }
 
-    void *ptr = (void *) block + sizeof(t_block);
+    void *ptr = (void *)((char *)block + BLOCK_HDR_SIZE);
 
     // --- BONUS: SCRIBBLE ON ALLOC ---
     // Fill with 0xAA (10101010) to expose uninitialized reads
