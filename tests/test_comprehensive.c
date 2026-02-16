@@ -8,7 +8,7 @@
  * When 1: Skips illegal operations (Double Free, Stack Free, Use-After-Free)
  * When 0: Runs full robustness tests (Good for defense, bad for Valgrind)
  */
-#define VALGRIND_MODE 0
+#define VALGRIND_MODE 1
 
 /* Colors */
 #define RESET   "\033[0m"
