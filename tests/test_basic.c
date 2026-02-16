@@ -1,8 +1,6 @@
-// tests/test_basic.c
 #include "../include/ft_malloc.h"
 #include <string.h>   // strcpy
 
-// gcc tests/test_basic.c -L. -lft_malloc -o test_run
 
 int main(void)
 {
