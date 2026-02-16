@@ -71,13 +71,13 @@ void show_alloc_mem_ex(void) {
         while (block) {
             if (!block->free) {
                 ft_putstr_fd("BLOCK: ", 1);
-                ft_putptr_fd((void *) block + sizeof(t_block), 1);
+                ft_putptr_fd((void *)((char *)block + BLOCK_HDR_SIZE), 1);
                 ft_putstr_fd(" - SIZE: ", 1);
                 ft_putsize_fd(block->size, 1);
                 ft_putstr_fd(" bytes\n", 1);
 
                 // Dump the user data
-                hexdump_block((void *) block + sizeof(t_block), block->size);
+                hexdump_block((void *)((char *)block + BLOCK_HDR_SIZE), block->size);
                 ft_putchar_fd('\n', 1);
             }
             block = block->next;
