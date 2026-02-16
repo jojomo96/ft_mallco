@@ -110,6 +110,21 @@ LD_PRELOAD=$MY_MALLOC grep "malloc" Makefile
 
 ## Debug Options
 
+### Verbose Debug Logs
+
+You can enable allocator event traces to `stderr`:
+
+```sh
+export MallocDebug=1
+```
+
+This prints one line for important events (`malloc`, `free`, `realloc`, new zone creation, and common error paths).
+It also shows placement details for each allocation (zone address, selected block, source as new-zone/reused-free, and pre-split block size).
+
+> Note: system allocators also provide debug knobs, but names differ by libc (for example `MALLOC_CHECK_` / `MALLOC_PERTURB_` on glibc).
+
+---
+
 ### Scribble Mode (bonus)
 
 If enabled, memory is filled with recognizable patterns:
