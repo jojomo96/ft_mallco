@@ -5,14 +5,6 @@
 
 t_zone *        g_zones           = NULL;
 pthread_mutex_t g_mutex           = PTHREAD_MUTEX_INITIALIZER;
-int             g_malloc_scribble = 0; // Set to 1 to enable scribbling (0xAA for allocated, 0x55 for freed)
-
-void __attribute__((constructor)) init_malloc_debug(void) {
-    if (getenv("MallocScribble")) {
-        g_malloc_scribble = 1;
-        // ft_putstr_fd("MallocScribble enabled\n", 2); // Optional: Debug print
-    }
-}
 
 /*
  * HELPER
