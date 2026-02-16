@@ -48,6 +48,7 @@ void split_block(t_block *block, const size_t size) {
         block->size = size;
         block->next = new_block;
         block->free = 0; // The original block is now allocated
+        debug_log_block_split(block, size, new_block->size);
     } else {
         // Not enough space to split, just mark the whole block as used
         block->free = 0;

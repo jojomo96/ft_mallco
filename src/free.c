@@ -13,6 +13,7 @@ void coalesce_right(t_block *current) {
 
         // Update the pointer to skip the absorbed block
         current->next = next_block->next;
+        debug_log_block_merge(current, next_block, current->size);
     }
 }
 
