@@ -107,6 +107,31 @@ void debug_log_block_split(const t_block *block, size_t requested_size, size_t r
     write(STDERR_FILENO, buffer, len);
 }
 
+void debug_log_malloc_placement(const t_zone *zone, const t_block *block, size_t requested_size,
+                                size_t aligned_size, size_t original_block_size, int from_new_zone)
+{
+    char   buffer[320];
+    size_t len;
+
+    if (!g_malloc_debug)
+        return;
+    len = 0;
+    len = append_text(buffer, len, "[ft_malloc] malloc placement zone=");
+    len = append_ptr(buffer, len, zone);
+    len = append_text(buffer, len, " block=");
+    len = append_ptr(buffer, len, block);
+    len = append_text(buffer, len, " requested=");
+    len = append_size(buffer, len, requested_size);
+    len = append_text(buffer, len, " aligned=");
+    len = append_size(buffer, len, aligned_size);
+    len = append_text(buffer, len, " block_before=");
+    len = append_size(buffer, len, original_block_size);
+    len = append_text(buffer, len, " source=");
+    len = append_text(buffer, len, from_new_zone ? "new-zone" : "reused-free");
+    buffer[len++] = '\n';
+    write(STDERR_FILENO, buffer, len);
+}
+
 void __attribute__((constructor)) init_malloc_debug(void)
 {
     const char *scribble = getenv("MallocScribble");

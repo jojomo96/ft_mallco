@@ -92,5 +92,7 @@ t_zone *request_new_zone(t_zone_type type, size_t request_size);
 void debug_log_event(const char *event, const void *ptr, size_t size, const char *detail);
 void debug_log_block_merge(const t_block *left, const t_block *right, size_t merged_size);
 void debug_log_block_split(const t_block *block, size_t requested_size, size_t remainder_size);
+void debug_log_malloc_placement(const t_zone *zone, const t_block *block, size_t requested_size,
+                                size_t aligned_size, size_t original_block_size, int from_new_zone);
 
 #endif // FT_MALLOC_LIBRARY_H

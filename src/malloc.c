@@ -78,6 +78,22 @@ static t_block *find_free_block(const t_zone_type type, const size_t size) {
     return NULL;
 }
 
+static t_zone *find_zone_for_block(const t_block *target)
+{
+    t_zone *zone = g_zones;
+
+    while (zone) {
+        t_block *block = zone->blocks;
+        while (block) {
+            if (block == target)
+                return zone;
+            block = block->next;
+        }
+        zone = zone->next;
+    }
+    return NULL;
+}
+
 void *malloc_nolock(size_t size) {
     // POSIX/C allow malloc(0) to either return NULL or a unique free-able pointer.
     // We choose to return a valid minimal allocation for better compatibility.
@@ -94,7 +110,8 @@ void *malloc_nolock(size_t size) {
     const t_zone_type type         = get_zone_type(aligned_size);
 
     // 2. Try to find an existing free block
-    t_block *block = find_free_block(type, aligned_size);
+    t_block *block         = find_free_block(type, aligned_size);
+    int      from_new_zone = 0;
 
     if (!block) {
         // 3. No block found? Request a new zone from the OS
@@ -106,8 +123,14 @@ void *malloc_nolock(size_t size) {
         }
 
         // The new zone comes with one big free block (except for LARGE)
-        block = zone->blocks;
+        block         = zone->blocks;
+        from_new_zone = 1;
     }
+
+    const size_t block_size_before = block->size;
+    t_zone *      block_zone        = find_zone_for_block(block);
+
+    debug_log_malloc_placement(block_zone, block, requested_size, aligned_size, block_size_before, from_new_zone);
 
     // 4. If it's a LARGE zone, we don't split (it's custom fit).
     //    For TINY/SMALL, we try to split the block to save the rest.
