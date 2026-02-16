@@ -19,6 +19,7 @@ LIBFT_INC   = $(ROOT_DIR)/libft/include
 # -L..          : Look for libraries in the parent directory
 # -lft_malloc   : Link against libft_malloc.so
 # -Wl,-rpath,.. : Tell the loader to look for the .so in '..' at runtime (Linux/Docker)
+LIBFT_MALLOC = $(ROOT_DIR)/libft_malloc.so
 LIBS        = -L$(ROOT_DIR) -lft_malloc
 LDFLAGS     = -Wl,-rpath,$(ROOT_DIR)
 
@@ -34,9 +35,9 @@ OBJ_LONG    = $(SRC_LONG:.c=.o)
 OBJ_SCRIBBLE = $(SRC_SCRIBBLE:.c=.o)
 
 # Rules
-all: lib $(NAME_BASIC) $(NAME_COMP) $(NAME_LONG) $(NAME_SCRIBBLE)
+all: $(LIBFT_MALLOC) $(NAME_BASIC) $(NAME_COMP) $(NAME_LONG) $(NAME_SCRIBBLE)
 
-lib:
+$(LIBFT_MALLOC):
 	@make -C $(ROOT_DIR) > /dev/null
 
 $(NAME_BASIC): $(OBJ_BASIC)
@@ -84,4 +85,4 @@ run_long: $(NAME_LONG)
 run_scribble: $(NAME_SCRIBBLE)
 	./$(NAME_SCRIBBLE)
 
-.PHONY: all clean fclean re lib run_basic run_comp run_long run_scribble
+.PHONY: all clean fclean re run_basic run_comp run_long run_scribble
