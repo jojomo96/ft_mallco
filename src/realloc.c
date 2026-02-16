@@ -56,16 +56,21 @@ static int try_merge_next(t_block *block, size_t need) {
 }
 
 void *realloc(void *ptr, size_t size) {
-    if (!ptr)
+    if (!ptr) {
+        debug_log_event("realloc", NULL, size, "acts as malloc");
         return malloc(size);
+    }
     if (size == 0) {
+        debug_log_event("realloc", ptr, 0, "acts as free");
         free(ptr);
         return NULL;
     }
 
     // overflow guard for align_size(size) == (size + 15) & ~15
-    if (size > SIZE_MAX - (size_t) 15u)
+    if (size > SIZE_MAX - (size_t) 15u) {
+        debug_log_event("realloc", ptr, size, "failed: size overflow");
         return NULL;
+    }
 
     // 1. Align the requested size
     size_t aligned_size = align_size(size);
@@ -77,6 +82,7 @@ void *realloc(void *ptr, size_t size) {
     t_block *block = find_block_by_ptr(ptr, &zone);
     if (!block || block->free || !zone) {
         pthread_mutex_unlock(&g_mutex);
+        debug_log_event("realloc", ptr, size, "failed: invalid pointer");
         return NULL; // Invalid pointer
     }
 
@@ -88,6 +94,7 @@ void *realloc(void *ptr, size_t size) {
         // doesn't strictly require shrinking. Keeping it simple is safe.
         // If you want to shrink: split_block(block, aligned_size);
         pthread_mutex_unlock(&g_mutex);
+        debug_log_event("realloc", ptr, size, "in-place shrink/no-op");
         return ptr;
     }
 
@@ -96,6 +103,7 @@ void *realloc(void *ptr, size_t size) {
         if (try_merge_next(block, aligned_size)) {
             scribble_new_bytes(ptr, old_size, block->size);
             pthread_mutex_unlock(&g_mutex);
+            debug_log_event("realloc", ptr, size, "in-place growth");
             return ptr;
         }
     }
@@ -105,6 +113,7 @@ void *realloc(void *ptr, size_t size) {
     void *new_ptr = malloc_nolock(aligned_size); // malloc_exec will align the size again
     if (!new_ptr) {
         pthread_mutex_unlock(&g_mutex);
+        debug_log_event("realloc", ptr, size, "failed: malloc");
         return NULL;
     }
 
@@ -115,5 +124,6 @@ void *realloc(void *ptr, size_t size) {
     free_nolock(ptr);
 
     pthread_mutex_unlock(&g_mutex);
+    debug_log_event("realloc", new_ptr, size, "moved");
     return new_ptr;
 }

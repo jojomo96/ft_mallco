@@ -37,8 +37,10 @@ static void free_large_zone(t_zone *zone, t_zone *prev_zone) {
 }
 
 void free_nolock(void *ptr) {
-    if (!ptr)
+    if (!ptr) {
+        debug_log_event("free", NULL, 0, "ignored: null pointer");
         return;
+    }
 
     t_zone *zone      = g_zones;
     t_zone *prev_zone = NULL;
@@ -63,7 +65,10 @@ void free_nolock(void *ptr) {
                     // --- FOUND THE BLOCK ---
 
                     // Double-Free Protection
-                    if (block->free) return;
+                    if (block->free) {
+                        debug_log_event("free", ptr, 0, "ignored: double free");
+                        return;
+                    }
 
                     // --- BONUS: SCRIBBLE ON FREE ---
                     // Fill with 0x55 (01010101) to expose Use-After-Free
@@ -73,6 +78,7 @@ void free_nolock(void *ptr) {
 
                     // LARGE Zone
                     if (zone->type == LARGE) {
+                        debug_log_event("free", ptr, block->size, "large");
                         free_large_zone(zone, prev_zone);
                         return;
                     }
@@ -89,6 +95,7 @@ void free_nolock(void *ptr) {
                         // After merging left, 'prev_block' is the master.
                         // We don't need to do anything else.
                     }
+                    debug_log_event("free", ptr, block->size, "zone");
                     return;
                 }
 
@@ -99,12 +106,14 @@ void free_nolock(void *ptr) {
             // If we are here, ptr is inside this zone's range but NOT a valid block start.
             // It's an invalid pointer (e.g., pointer to middle of a string).
             // We stop searching immediately.
-            break;
+            debug_log_event("free", ptr, 0, "ignored: invalid pointer");
+            return;
         }
         // Advance zone pointers
         prev_zone = zone;
         zone      = zone->next;
     }
+    debug_log_event("free", ptr, 0, "ignored: pointer not owned");
 }
 
 void free(void *ptr) {

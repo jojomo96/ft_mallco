@@ -61,6 +61,7 @@ typedef struct s_zone {
 extern t_zone *g_zones; // Global linked list of all zones
 extern pthread_mutex_t g_mutex; // Mutex for thread safety
 extern int g_malloc_scribble; // If set, fill allocated memory with 0xAA and freed memory with 0x55 for debugging
+extern int g_malloc_debug; // If set, allocator emits debug traces to stderr
 
 /* -------------------------------------------------------------------------- */
 /* PROTOTYPES                                  */
@@ -86,5 +87,8 @@ size_t  align_size(size_t size);
 void    split_block(t_block *block, size_t size);
 void    coalesce_right(t_block *current);
 t_zone *request_new_zone(t_zone_type type, size_t request_size);
+
+/* Debug helpers */
+void debug_log_event(const char *event, const void *ptr, size_t size, const char *detail);
 
 #endif // FT_MALLOC_LIBRARY_H

@@ -9,13 +9,17 @@
 void *calloc(size_t nmemb, size_t size) {
     // Check for overflow: nmemb * size
     // If nmemb is not 0 and size > SIZE_MAX / nmemb, then nmemb * size would overflow
-    if (nmemb != 0 && size > SIZE_MAX / nmemb)
+    if (nmemb != 0 && size > SIZE_MAX / nmemb) {
+        debug_log_event("calloc", NULL, size, "failed: multiplication overflow");
         return NULL;
+    }
+
     const size_t total_size = nmemb * size;
     // Use our custom malloc
     void* ptr = malloc(total_size);
     if (ptr) {
         ft_memset(ptr, 0, total_size);
     }
+    debug_log_event("calloc", ptr, total_size, ptr ? "ok" : "failed: malloc");
     return ptr;
 }

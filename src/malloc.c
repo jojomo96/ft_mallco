@@ -83,8 +83,10 @@ void *malloc_nolock(size_t size) {
     const size_t requested_size = size == 0 ? (size_t) 1u : size;
 
     // overflow guard for align_size(size) == (size + 15) & ~15
-    if (requested_size > SIZE_MAX - (size_t) 15u)
+    if (requested_size > SIZE_MAX - (size_t) 15u) {
+        debug_log_event("malloc", NULL, requested_size, "failed: size overflow");
         return NULL;
+    }
 
     // 1. Align size to 16 bytes
     const size_t      aligned_size = align_size(requested_size);
@@ -98,6 +100,7 @@ void *malloc_nolock(size_t size) {
         t_zone *zone = request_new_zone(type, aligned_size);
         if (!zone) {
             // Failed to mmap (OOM)
+            debug_log_event("malloc", NULL, aligned_size, "failed: mmap");
             return NULL;
         }
 
@@ -124,6 +127,7 @@ void *malloc_nolock(size_t size) {
 
     // 5. Return the pointer to the USER data (skip the header!)
     //    (void*)block + sizeof(t_block)
+    debug_log_event("malloc", ptr, requested_size, type == LARGE ? "large" : "zone");
     return ptr;
 }
 

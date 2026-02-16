@@ -62,8 +62,10 @@ t_zone *request_new_zone(const t_zone_type type, const size_t request_size) {
     void *ptr = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
     // 3. Check for failure (mmap returns MAP_FAILED, not NULL)
-    if (ptr == MAP_FAILED)
+    if (ptr == MAP_FAILED) {
+        debug_log_event("zone", NULL, zone_size, "failed: mmap");
         return NULL;
+    }
 
     // 4. Initialize the structures inside this raw memory
     t_zone *zone = init_zone(ptr, type, zone_size);
@@ -75,6 +77,6 @@ t_zone *request_new_zone(const t_zone_type type, const size_t request_size) {
     zone->next = *pp;
     *pp = zone;
 
-
+    debug_log_event("zone", zone, zone_size, type == LARGE ? "new large zone" : "new pooled zone");
     return zone;
 }
