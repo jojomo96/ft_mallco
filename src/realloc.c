@@ -1,32 +1,43 @@
 #include <stdint.h>
+
 #include "ft_malloc.h"
 
+/*
+ * Scribble only the new tail after in-place growth / copied growth.
+ *
+ * We intentionally do not rewrite the old prefix so previously valid data stays
+ * untouched and user-visible semantics remain intuitive.
+ */
 static void scribble_new_bytes(void *ptr, size_t old_size, size_t new_size) {
-    if (g_malloc_scribble && new_size > old_size) {
-        ft_memset((char *) ptr + old_size, 0xAA, new_size - old_size);
-    }
+    if (g_malloc_scribble && new_size > old_size)
+        ft_memset((char *)ptr + old_size, 0xAA, new_size - old_size);
 }
 
 /*
- * HELPER: Find the block metadata for a given user pointer.
- * Assumes g_mutex is locked.
+ * Find block metadata from a user pointer.
+ *
+ * Caller must hold g_mutex to prevent list mutations while traversing.
  */
 static t_block *find_block_by_ptr(void *ptr, t_zone **out_zone) {
     t_zone *zone = g_zones;
 
     while (zone) {
-        char *start = (char *) zone;
+        char *start = (char *)zone;
         char *end   = start + zone->size;
 
-        if ((char *) ptr >= start && (char *) ptr < end) {
+        /* First confirm pointer is within this zone mapping. */
+        if ((char *)ptr >= start && (char *)ptr < end) {
             t_block *block = zone->blocks;
+
             while (block) {
-                if ((void *) ((char *) block + BLOCK_HDR_SIZE) == ptr) {
+                if ((void *)((char *)block + BLOCK_HDR_SIZE) == ptr) {
                     *out_zone = zone;
                     return block;
                 }
                 block = block->next;
             }
+
+            /* Pointer was in zone range, but not at any block boundary. */
             break;
         }
         zone = zone->next;
@@ -34,27 +45,37 @@ static t_block *find_block_by_ptr(void *ptr, t_zone **out_zone) {
     return NULL;
 }
 
-
 /*
- * HELPER: Try to merge with the next block to satisfy request
+ * Attempt in-place expansion by consuming the immediate next free block.
+ *
+ * Returns 1 on success, 0 if expansion in place is impossible.
  */
 static int try_merge_next(t_block *block, size_t need) {
     t_block *next = block->next;
 
-    // We can only merge if the next block exists and is free
+    /* Must have an adjacent free neighbor to expand without moving. */
     if (!next || !next->free)
         return 0;
 
+    /* Compute payload size after hypothetical merge. */
     size_t merged = block->size + BLOCK_HDR_SIZE + next->size;
     if (merged < need)
         return 0;
 
+    /* Commit merge and re-split so final payload is close to requested size. */
     coalesce_right(block);
     block->free = 0;
     split_block(block, need);
     return 1;
 }
 
+/*
+ * realloc behavior summary:
+ * - realloc(NULL, n)   -> malloc(n)
+ * - realloc(p, 0)      -> free(p), return NULL
+ * - grow/shrink in place when possible
+ * - otherwise allocate-copy-free
+ */
 void *realloc(void *ptr, size_t size) {
     if (!ptr) {
         debug_log_event("realloc", NULL, size, "acts as malloc");
@@ -66,60 +87,63 @@ void *realloc(void *ptr, size_t size) {
         return NULL;
     }
 
-    // overflow guard for align_size(size) == (size + 15) & ~15
-    if (size > SIZE_MAX - (size_t) 15u) {
+    /* Guard against overflow before alignment step. */
+    if (size > SIZE_MAX - (size_t)15u) {
         debug_log_event("realloc", ptr, size, "failed: size overflow");
         return NULL;
     }
 
-    // 1. Align the requested size
     size_t aligned_size = align_size(size);
 
     pthread_mutex_lock(&g_mutex);
 
-    // 2. Find the block metadata
+    /* Validate ptr and recover metadata. */
     t_zone * zone  = NULL;
     t_block *block = find_block_by_ptr(ptr, &zone);
     if (!block || block->free || !zone) {
         pthread_mutex_unlock(&g_mutex);
         debug_log_event("realloc", ptr, size, "failed: invalid pointer");
-        return NULL; // Invalid pointer
+        return NULL;
     }
 
     size_t old_size = block->size;
 
-    // 3. Optimization: Shrinking
+    /*
+     * Shrink/no-op path:
+     * we keep current block as-is for simplicity and stability.
+     * (Could split here, but not required for correctness.)
+     */
     if (aligned_size <= old_size) {
-        // TODO: We could split here to return memory, but the subject
-        // doesn't strictly require shrinking. Keeping it simple is safe.
-        // If you want to shrink: split_block(block, aligned_size);
         pthread_mutex_unlock(&g_mutex);
         debug_log_event("realloc", ptr, size, "in-place shrink/no-op");
         return ptr;
     }
 
-    // 4. Optimization: In-Place Growth (Merge with next) - Only for TINY/SMALL
-    if (zone->type != LARGE) {
-        if (try_merge_next(block, aligned_size)) {
-            scribble_new_bytes(ptr, old_size, block->size);
-            pthread_mutex_unlock(&g_mutex);
-            debug_log_event("realloc", ptr, size, "in-place growth");
-            return ptr;
-        }
+    /*
+     * In-place growth path (pooled zones only).
+     * LARGE zones are dedicated mappings and are not expanded this way.
+     */
+    if (zone->type != LARGE && try_merge_next(block, aligned_size)) {
+        scribble_new_bytes(ptr, old_size, block->size);
+        pthread_mutex_unlock(&g_mutex);
+        debug_log_event("realloc", ptr, size, "in-place growth");
+        return ptr;
     }
 
-    // 5. Fallback: Malloc-Copy-Free
-    // We use the _exec functions because we ALREADY hold the lock.
-    void *new_ptr = malloc_nolock(aligned_size); // malloc_exec will align the size again
+    /*
+     * Fallback move path:
+     * - allocate a new block
+     * - copy old payload
+     * - free old block
+     */
+    void *new_ptr = malloc_nolock(aligned_size);
     if (!new_ptr) {
         pthread_mutex_unlock(&g_mutex);
         debug_log_event("realloc", ptr, size, "failed: malloc");
         return NULL;
     }
 
-    // 6. Copy the old data
-    size_t copy_size = old_size; // here aligned_size > old_size, so copy old_size
-    ft_memcpy(new_ptr, ptr, copy_size);
+    ft_memcpy(new_ptr, ptr, old_size);
     scribble_new_bytes(new_ptr, old_size, aligned_size);
     free_nolock(ptr);
 

@@ -7,13 +7,13 @@
 #include "libft/libft.h"
 
 /* -------------------------------------------------------------------------- */
-/* CONSTANTS                                  */
+/* Constants                                                                   */
 /* -------------------------------------------------------------------------- */
 
 # define TINY_MALLOC_LIMIT 128
 # define SMALL_MALLOC_LIMIT 1024
 
-#define MIN_ALLOCS 100 //512
+#define MIN_ALLOCS 100
 
 #define MALLOC_ALIGN 16UL
 #define ALIGN_UP(x) (((x) + (MALLOC_ALIGN - 1)) & ~(MALLOC_ALIGN - 1))
@@ -23,7 +23,7 @@
 
 
 /* -------------------------------------------------------------------------- */
-/* STRUCTURES                                  */
+/* Data structures                                                             */
 /* -------------------------------------------------------------------------- */
 
 /*
@@ -31,9 +31,9 @@
  * This sits immediately before the memory returned to the user.
  */
 typedef struct s_block {
-    struct s_block *next; // Pointer to the next block in this zone
-    size_t          size; // Size of the user data (excluding this header)
-    int             free; // 1 if available, 0 if used
+    struct s_block *next; /* Next block in the same zone. */
+    size_t          size; /* User payload size (excluding metadata header). */
+    int             free; /* 1 when available, 0 when currently allocated. */
 } t_block;
 
 /*
@@ -47,24 +47,24 @@ typedef enum e_zone_type {
 } t_zone_type;
 
 typedef struct s_zone {
-    struct s_zone *next;   // Pointer to the next zone in the global list
-    t_block *      blocks; // Pointer to the first block in this zone
-    size_t         size;   // Total size of this zone (including metadata)
-    t_zone_type    type;   // Type of this zone (TINY, SMALL, LARGE)
+    struct s_zone *next;   /* Next zone in the global zone list. */
+    t_block *      blocks; /* First block contained in this zone. */
+    size_t         size;   /* Total mapped zone size, metadata included. */
+    t_zone_type    type;   /* Zone class: TINY, SMALL, or LARGE. */
 } t_zone;
 
 
 /* -------------------------------------------------------------------------- */
-/* GLOBALS                                   */
+/* Globals                                                                     */
 /* -------------------------------------------------------------------------- */
 
-extern t_zone *g_zones; // Global linked list of all zones
-extern pthread_mutex_t g_mutex; // Mutex for thread safety
-extern int g_malloc_scribble; // If set, fill allocated memory with 0xAA and freed memory with 0x55 for debugging
-extern int g_malloc_debug; // If set, allocator emits debug traces to stderr
+extern t_zone *g_zones;          /* Global linked list of all zones. */
+extern pthread_mutex_t g_mutex;  /* Allocator-wide mutex for thread safety. */
+extern int g_malloc_scribble;    /* Fill allocated/free memory with patterns when enabled. */
+extern int g_malloc_debug;       /* Emit allocator debug traces to stderr when enabled. */
 
 /* -------------------------------------------------------------------------- */
-/* PROTOTYPES                                  */
+/* Public API                                                                  */
 /* -------------------------------------------------------------------------- */
 
 void *malloc(size_t size);
@@ -75,24 +75,24 @@ void  show_alloc_mem(void);
 void  show_alloc_mem_ex(void);
 
 /* -------------------------------------------------------------------------- */
-/* INTERNAL SHARED HELPERS (Do not call these from outside)                   */
+/* Internal shared helpers (not part of the public API)                        */
 /* -------------------------------------------------------------------------- */
 
 /* Core logic without locks (used by realloc to avoid deadlocks) */
 void *malloc_nolock(size_t size);
 void  free_nolock(void *ptr);
 
-/* Utility functions shared across files */
+/* Utility helpers shared across files. */
 size_t  align_size(size_t size);
 void    split_block(t_block *block, size_t size);
 void    coalesce_right(t_block *current);
 t_zone *request_new_zone(t_zone_type type, size_t request_size);
 
-/* Debug helpers */
+/* Debug helpers. */
 void debug_log_event(const char *event, const void *ptr, size_t size, const char *detail);
 void debug_log_block_merge(const t_block *left, const t_block *right, size_t merged_size);
 void debug_log_block_split(const t_block *block, size_t requested_size, size_t remainder_size);
 void debug_log_malloc_placement(const t_zone *zone, const t_block *block, size_t requested_size,
                                 size_t aligned_size, size_t original_block_size, int from_new_zone);
 
-#endif // FT_MALLOC_LIBRARY_H
+#endif

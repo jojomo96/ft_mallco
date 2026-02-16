@@ -3,80 +3,88 @@
 #include "ft_malloc.h"
 
 /*
- * HELPER: Calculate the zone size
- * Returns a multiple of getpagesize() that can hold at least 100 allocations.
+ * Compute mmap size for a zone class.
+ *
+ * TINY/SMALL policy:
+ * - provision pooled zones large enough for at least MIN_ALLOCS blocks
+ *
+ * LARGE policy:
+ * - allocate just enough for one request (+metadata)
+ *
+ * Final result is rounded up to page size because mmap works in pages.
  */
 static size_t calculate_zone_size(const t_zone_type type, const size_t request_size) {
     const size_t page_size = getpagesize();
-    size_t size_needed;
+    size_t       size_needed;
 
     if (type == TINY)
-        // 100 blocks of (MAX_TINY + Header)
         size_needed = ZONE_HDR_SIZE + MIN_ALLOCS * (TINY_MALLOC_LIMIT + BLOCK_HDR_SIZE);
     else if (type == SMALL)
-        // 100 blocks of (MAX_SMALL + Header)
         size_needed = ZONE_HDR_SIZE + MIN_ALLOCS * (SMALL_MALLOC_LIMIT + BLOCK_HDR_SIZE);
     else
-        // LARGE: Just the request + headers
-        size_needed = ZONE_HDR_SIZE + request_size + BLOCK_HDR_SIZE; // request size is already aligned
+        size_needed = ZONE_HDR_SIZE + request_size + BLOCK_HDR_SIZE;
 
-    // Round up to the nearest multiple of page size
     return (size_needed + page_size - 1) / page_size * page_size;
 }
 
 /*
- * HELPER: Initialize the new zone
- * 1. Write the Zone Header
- * 2. Write the first Block Header (which covers the entire remaining space)
+ * Lay out zone metadata and initial block metadata in a fresh mapping.
+ *
+ * Memory layout:
+ * [zone header][first block header][first block payload ...]
  */
 static t_zone *init_zone(void *ptr, const t_zone_type type, const size_t zone_size) {
-    // 1. Place the Zone Header at the start of the new memory
     t_zone *zone = (t_zone *)ptr;
-    zone->type   = type;
-    zone->size   = zone_size;
-    zone->next   = NULL;
 
-    // 2. Place the first Block Header immediately after the Zone Header
+    zone->type = type;
+    zone->size = zone_size;
+    zone->next = NULL;
+
     t_block *first_block = (t_block *)((char *)zone + ZONE_HDR_SIZE);
     zone->blocks = first_block;
 
     first_block->next = NULL;
     first_block->size = zone_size - ZONE_HDR_SIZE - BLOCK_HDR_SIZE;
-    first_block->free = (type != LARGE); // LARGE zones effectively have one block that is already "used"
+
+    /*
+     * For pooled zones, first block starts free.
+     * For LARGE zones, this block is consumed immediately by allocator path.
+     */
+    first_block->free = (type != LARGE);
 
     return zone;
 }
 
 /*
- * MAIN FUNCTION: Request a new zone from the system
- * WARNING: Expects g_mutex to be LOCKED by the caller!
- * Now with Thread Safety and List Appending
+ * Create and register a new zone.
+ *
+ * Caller must hold g_mutex.
  */
 t_zone *request_new_zone(const t_zone_type type, const size_t request_size) {
-    // 1. Calculate the total size needed for this zone (including headers)
     const size_t zone_size = calculate_zone_size(type, request_size);
 
-    // 2. Ask the kernel for memory
-    // PROT_READ | PROT_WRITE : We need to read/write this memory
-    // MAP_ANON | MAP_PRIVATE : Not a file, private to our process
-    void *ptr = mmap(NULL, zone_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-
-    // 3. Check for failure (mmap returns MAP_FAILED, not NULL)
+    /* Ask kernel for anonymous private memory. */
+    void *ptr = mmap(NULL, zone_size, PROT_READ | PROT_WRITE,
+                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (ptr == MAP_FAILED) {
         debug_log_event("zone", NULL, zone_size, "failed: mmap");
         return NULL;
     }
 
-    // 4. Initialize the structures inside this raw memory
     t_zone *zone = init_zone(ptr, type, zone_size);
 
-    // 5. Add this new zone to the global list
+    /*
+     * Insert zone in address order.
+     * Keeping a stable order makes traversals/debug output deterministic.
+     */
     t_zone **pp = &g_zones;
     while (*pp && (uintptr_t)(*pp) < (uintptr_t)zone)
         pp = &(*pp)->next;
+
     zone->next = *pp;
     *pp = zone;
 
-    debug_log_event("zone", zone, zone_size, type == LARGE ? "new large zone" : "new pooled zone");
+    debug_log_event("zone", zone, zone_size,
+                    type == LARGE ? "new large zone" : "new pooled zone");
     return zone;
 }
