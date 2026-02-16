@@ -67,7 +67,7 @@ $(LIBFT): $(LIBFT_DIR)/.git
 # Compile Object Files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -I $(INC_DIR) -I $(LIBFT_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I $(INC_DIR) -I $(LIBFT_DIR)/include -c $< -o $@
 
 # Clean Objects
 clean:

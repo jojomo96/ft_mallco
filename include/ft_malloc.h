@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <pthread.h>
-#include "../libft/include/libft/libft.h"
+#include "libft/libft.h"
 
 /* -------------------------------------------------------------------------- */
 /* CONSTANTS                                  */
